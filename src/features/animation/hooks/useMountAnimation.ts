@@ -33,12 +33,12 @@ export const useMountAnimation = (
 ): UseMountAnimationResult => {
   const { topDelay = 100, sidesDelay = 1200, textDelay = 2500 } = options;
 
-  const [topMounted, setHeaderMounted] = useState(false);
+  const [topMounted, setTopMounted] = useState(false);
   const [sidesMounted, setSidesMounted] = useState(false);
   const [textMounted, setTextMounted] = useState(false);
 
   useEffect(() => {
-    const topTimer = setTimeout(() => setHeaderMounted(true), topDelay);
+    const topTimer = setTimeout(() => setTopMounted(true), topDelay);
     const sidesTimer = setTimeout(() => setSidesMounted(true), sidesDelay);
     const textTimer = setTimeout(() => setTextMounted(true), textDelay);
 
