@@ -1,8 +1,8 @@
-// src/features/animation/components/AnimatedComponents.tsx
+// src/features/slides/components/Slides.tsx
 import { useRef } from "react";
 import { useMountAnimation } from "../hooks/useMountAnimation";
 
-export const AnimatedComponent: React.FC = () => {
+export const Slides: React.FC = () => {
   const { topMounted, sidesMounted, textMounted } = useMountAnimation({
     topDelay: 200,
     sidesDelay: 1200,

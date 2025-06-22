@@ -1,11 +1,10 @@
-import { AnimatedComponent } from "./features/animation/components/AnimatedComponents";
+// src/App.tsx
+import { Slides } from "./features/slides/components/Slides";
 
-function App() {
+export const App: React.FC = () => {
   return (
-    <>
-      <AnimatedComponent />
-    </>
+    <div className="relative flex grow flex-col">
+      <Slides />
+    </div>
   );
-}
-
-export default App;
+};
