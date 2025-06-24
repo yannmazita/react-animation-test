@@ -7,7 +7,7 @@ export interface NavigationItem {
 
 export const navigationItems: NavigationItem[] = [
   { id: "slides", name: "SLIDES", to: "slides" },
-  { id: "slices", name: "SLICES", to: "slices" },
+  { id: "lightning", name: "LIGHTNING", to: "lightning" },
 ];
 
 export const GITHUB_URL = "https://github.com/yannmazita";

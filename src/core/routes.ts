@@ -21,12 +21,12 @@ export const routes: RouteObject[] = [
         },
       },
       {
-        path: "/slices",
+        path: "/lightning",
         lazy: async () => {
-          const { Slices } = await import(
-            "@/features/slices/components/Slices"
+          const { Lightning } = await import(
+            "@/features/lightning/components/Lightning"
           );
-          return { Component: Slices };
+          return { Component: Lightning };
         },
       },
     ],
