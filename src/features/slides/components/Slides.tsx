@@ -28,7 +28,7 @@ export const Slides: React.FC = () => {
           willChange: "filter, opacity",
         }}
       >
-        <h1 className="text-4xl font-bold text-gray-800">Animated Component</h1>
+        <h1 className="text-4xl font-bold text-gray-800">Slides</h1>
       </div>
 
       {/* Sides */}
