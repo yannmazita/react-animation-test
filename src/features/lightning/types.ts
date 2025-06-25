@@ -1,4 +1,4 @@
-// src/features/projects/types.ts
+// src/features/lightning/types.ts
 
 /**
  * Defines where lightning bolts can start
@@ -79,22 +79,22 @@ export interface LightningBolt {
  *
  * Configuration options for customizing the lightning effect.
  *
- * @field minDelay - The minimum number of animation frames before a new lightning storm can be created.
- * @field maxDelay - The maximum number of animation frames before a new lightning storm can be created.
+ * @field minDelay - The minimum number of physics ticks (at 60 ticks/sec) before a new lightning storm can be created.
+ * @field maxDelay - The maximum number of physics ticks (at 60 ticks/sec) before a new lightning storm can be created.
  * @field minCreateCount - The minimum number of individual bolts to create in a single storm.
  * @field maxCreateCount - The maximum number of individual bolts to create in a single storm.
  * @field minPathLength - The minimum number of segments a bolt can have.
  * @field maxPathLength - The maximum number of segments a bolt can have.
- * @field minSpeed - The minimum base speed/length for each bolt segment.
- * @field maxSpeed - The maximum base speed/length for each bolt segment.
- * @field minTurniness - The minimum factor for how much a bolt can change direction.
- * @field maxTurniness - The maximum factor for how much a bolt can change direction.
+ * @field minSpeed - The minimum base speed/length for each bolt segment per tick.
+ * @field maxSpeed - The maximum base speed/length for each bolt segment per tick.
+ * @field minTurniness - The minimum factor for how much a bolt can change direction per tick.
+ * @field maxTurniness - The maximum factor for how much a bolt can change direction per tick.
  * @field minLineWidth - The minimum pixel width of the rendered bolt line.
  * @field maxLineWidth - The maximum pixel width of the rendered bolt line.
  * @field blur - The size of the glow/blur effect around the lightning.
  * @field blurColor - The color of the glow/blur effect.
  * @field strokeColor - The primary color of the lightning bolt itself.
- * @field trailLength - The number of frames to keep trails.
+ * @field trailLength - The number of physics ticks (at 60 ticks/sec) that a trail will last, determining its fade-out duration.
  * @field startPosition - Defines where new lightning bolts originate. Can be a predefined string ('edges', 'top', etc.) or a custom function.
  * @field startPositionBias - When using an edge-based `startPosition`, controls the distribution of bolts along that edge.
  * @field startVelocity - Defines initial direction vector for new lightning bolts. Can be a predefined string, a fixed angle (in radians), or a custom function. The vector will be normalized internally.

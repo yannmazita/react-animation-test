@@ -36,7 +36,7 @@ const DEFAULT_LIGHTNING_OPTIONS: LightningOptions = {
 
 interface TrailSegment {
   path: { x: number; y: number }[];
-  age: number;
+  age: number; // Age in milliseconds
   lineWidth: number;
 }
 
@@ -87,6 +87,12 @@ export const useLightning = (
     const trails: TrailSegment[] = [];
     let lightTimeCurrent = 0;
     let lightTimeTotal = random(config.minDelay, config.maxDelay);
+
+    // Time-related variables for the fixed-timestep loop
+    let lastTime = performance.now();
+    let accumulator = 0;
+    const timestep = 1000 / 60; // Run physics at 60 updates per second
+    const trailDuration = config.trailLength * timestep; // Convert trailLength from ticks to ms
 
     /**
      * Generates starting position based on configuration
@@ -256,6 +262,7 @@ export const useLightning = (
 
     /**
      * Updates the position and path of all active lightning bolts.
+     * This function is called at a fixed rate by the main loop.
      *
      * For each bolt:
      * 1. Applies turniness to create natural-looking direction changes
@@ -323,19 +330,20 @@ export const useLightning = (
      * Renders a single frame of the lightning animation.
      *
      * 1. Clears the entire canvas to ensure no color accumulation
-     * 2. Ages existing trails and removes those that exceed trailLength
+     * 2. Ages existing trails based on deltaTime and removes those that exceed trailDuration
      * 3. Draws all trails with decreasing opacity based on age
      * 4. Draws all active lightning bolts at full opacity
      *
+     * @param deltaTime - The time elapsed since the last frame, in milliseconds.
      */
-    const drawFrame = () => {
+    const drawFrame = (deltaTime: number) => {
       // Clear the entire canvas
       ctx.clearRect(0, 0, w, h);
 
       // Update trail ages and remove old ones
       for (let i = trails.length - 1; i >= 0; i--) {
-        trails[i].age++;
-        if (trails[i].age > config.trailLength) {
+        trails[i].age += deltaTime; // Age is now time-based
+        if (trails[i].age > trailDuration) {
           trails.splice(i, 1);
         }
       }
@@ -345,7 +353,7 @@ export const useLightning = (
       ctx.shadowColor = config.blurColor;
 
       for (const trail of trails) {
-        const opacity = 1 - trail.age / config.trailLength;
+        const opacity = 1 - trail.age / trailDuration; // Opacity based on time
         const [r, g, b] = [220, 235, 255]; // Extract RGB from strokeColor
         ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${opacity * 0.8})`;
         ctx.lineWidth = trail.lineWidth * opacity;
@@ -376,24 +384,43 @@ export const useLightning = (
 
     /**
      * Main animation loop function called on each frame.
+     * Implements a fixed-timestep loop to decouple physics from rendering.
      *
-     * 1. Tracks frames and spawns new bolts at intervals
-     * 2. Updates all active lightning bolt positions
-     * 3. Renders the complete frame
-     * 4. Schedules the next animation frame
+     * 1. Calculates elapsed time (deltaTime).
+     * 2. Runs physics updates (`updateLightning`) at a fixed rate (60hz).
+     * 3. Renders the latest state (`drawFrame`) on every available frame.
+     * 4. Schedules the next animation frame.
+     *
+     * @param currentTime - The current time from performance.now().
      */
-    const animate = () => {
-      lightTimeCurrent++;
-      if (lightTimeCurrent >= lightTimeTotal) {
-        createLightning();
-        lightTimeCurrent = 0;
-        lightTimeTotal = random(config.minDelay, config.maxDelay);
+    const animate = (currentTime: number) => {
+      animationFrameId.current = requestAnimationFrame(animate);
+
+      let deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      // Prevent spiral of death on tab changes
+      if (deltaTime > 250) {
+        deltaTime = 250;
       }
 
-      updateLightning();
-      drawFrame();
+      accumulator += deltaTime;
 
-      animationFrameId.current = requestAnimationFrame(animate);
+      // Fixed-timestep physics updates
+      while (accumulator >= timestep) {
+        lightTimeCurrent++;
+        if (lightTimeCurrent >= lightTimeTotal) {
+          createLightning();
+          lightTimeCurrent = 0;
+          lightTimeTotal = random(config.minDelay, config.maxDelay);
+        }
+
+        updateLightning();
+        accumulator -= timestep;
+      }
+
+      // Render as fast as possible
+      drawFrame(deltaTime);
     };
 
     const handleResize = () => {
@@ -401,11 +428,13 @@ export const useLightning = (
       h = canvas.height = canvas.offsetHeight;
       lightning.length = 0;
       trails.length = 0;
+      // Reset time to avoid a large deltaTime jump on resize
+      lastTime = performance.now();
     };
 
     window.addEventListener("resize", handleResize);
     handleResize();
-    animate();
+    animationFrameId.current = requestAnimationFrame(animate);
 
     return () => {
       window.removeEventListener("resize", handleResize);
