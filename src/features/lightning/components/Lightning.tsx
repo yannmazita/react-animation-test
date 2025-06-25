@@ -1,12 +1,14 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 
 interface LightningBolt {
   x: number;
   y: number;
-  xRange: number;
-  yRange: number;
+  vx: number;
+  vy: number;
   path: { x: number; y: number }[];
   pathLimit: number;
+  speed: number;
+  turniness: number;
 }
 
 export const Lightning: React.FC = () => {
@@ -24,7 +26,7 @@ export const Lightning: React.FC = () => {
     let h = (canvas.height = window.innerHeight);
 
     const random = (min: number, max: number) =>
-      Math.random() * (max - min + 1) + min;
+      Math.random() * (max - min) + min;
 
     const lightning: LightningBolt[] = [];
     let lightTimeCurrent = 0;
@@ -32,40 +34,48 @@ export const Lightning: React.FC = () => {
 
     // Logic to create horizontal and vertical bolts.
     const createLightning = () => {
-      let x, y;
-      const boltType = random(1, 3); // Simple switch for bolt types
+      const edge = Math.floor(random(0, 4)); // 0: top, 1: right, 2: bottom, 3: left
+      let x, y, vx, vy;
 
-      // Horizontal bolts starting from sides
-      if (boltType < 3) {
-        x = random(0, 1) === 0 ? 0 : w; // Start at left or right edge
-        y = random(0, h);
-        const createCount = random(1, 3);
-        for (let i = 0; i < createCount; i++) {
-          lightning.push({
-            x: x,
-            y: y,
-            xRange: random(40, 60), // Strong horizontal movement
-            yRange: random(10, 20), // Weaker vertical movement
-            path: [{ x: x, y: y }],
-            pathLimit: random(30, 60),
-          });
-        }
+      switch (edge) {
+        case 0: // Top edge
+          x = random(0, w);
+          y = 0;
+          vx = random(-1, 1);
+          vy = random(0.5, 1);
+          break;
+        case 1: // Right edge
+          x = w;
+          y = random(0, h);
+          vx = random(-1, -0.5);
+          vy = random(-1, 1);
+          break;
+        case 2: // Bottom edge
+          x = random(0, w);
+          y = h;
+          vx = random(-1, 1);
+          vy = random(-1, -0.5);
+          break;
+        default: // Left edge (case 3)
+          x = 0;
+          y = random(0, h);
+          vx = random(0.5, 1);
+          vy = random(-1, 1);
+          break;
       }
-      // Vertical bolts starting from top/bottom
-      else {
-        x = random(0, w);
-        y = random(0, 1) === 0 ? 0 : h; // Start at top or bottom edge
-        const createCount = random(1, 3);
-        for (let i = 0; i < createCount; i++) {
-          lightning.push({
-            x: x,
-            y: y,
-            xRange: random(10, 20), // Weaker horizontal movement
-            yRange: random(40, 60), // Strong vertical movement
-            path: [{ x: x, y: y }],
-            pathLimit: random(30, 60),
-          });
-        }
+
+      const createCount = Math.floor(random(1, 4));
+      for (let i = 0; i < createCount; i++) {
+        lightning.push({
+          x: x,
+          y: y,
+          vx: vx,
+          vy: vy,
+          path: [{ x: x, y: y }],
+          pathLimit: random(80, 150),
+          speed: random(30, 50),
+          turniness: random(0.1, 0.5),
+        });
       }
     };
 
@@ -76,13 +86,38 @@ export const Lightning: React.FC = () => {
 
       for (let i = lightning.length - 1; i >= 0; i--) {
         const light = lightning[i];
-        // Allow movement in all directions
+        const lastSegment = light.path[light.path.length - 1];
+
+        // 1. Update direction vector with turniness
+        light.vx += random(-light.turniness, light.turniness);
+        light.vy += random(-light.turniness, light.turniness);
+
+        // 2. Normalize the vector to maintain a consistent direction push
+        const magnitude = Math.sqrt(light.vx * light.vx + light.vy * light.vy);
+        if (magnitude > 0) {
+          light.vx /= magnitude;
+          light.vy /= magnitude;
+        }
+
+        // 3. Calculate next point with main direction and jitter
+        const segmentLength = random(light.speed * 0.5, light.speed * 1.5);
+        const jitterAmount = light.speed * 1.5;
+
         const nextX =
-          light.path[light.path.length - 1].x +
-          (random(0, light.xRange) - light.xRange / 2);
+          lastSegment.x +
+          light.vx * segmentLength +
+          random(-jitterAmount, jitterAmount);
         const nextY =
-          light.path[light.path.length - 1].y +
-          (random(0, light.yRange) - light.yRange / 2);
+          lastSegment.y +
+          light.vy * segmentLength +
+          random(-jitterAmount, jitterAmount);
+
+        // Terminate if bolt goes off-screen
+        if (nextX < 0 || nextX > w || nextY < 0 || nextY > h) {
+          lightning.splice(i, 1);
+          continue;
+        }
+
         light.path.push({ x: nextX, y: nextY });
 
         if (light.path.length > light.pathLimit) {
