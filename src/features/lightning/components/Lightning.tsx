@@ -7,8 +7,8 @@ export const Lightning: React.FC = () => {
   useLightning(canvasRef);
 
   return (
-    <div className="fixed inset-0 -z-10 h-full w-full overflow-hidden bg-black">
-      <canvas ref={canvasRef} className="absolute inset-0" />
+    <div className="relative h-screen w-full bg-black">
+      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
     </div>
   );
 };
