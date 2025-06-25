@@ -1,4 +1,4 @@
-// src/features/lightning/types.ts
+// src/features/projects/types.ts
 
 /**
  * Defines where lightning bolts can start
@@ -95,6 +95,9 @@ export interface LightningBolt {
  * @field blurColor - The color of the glow/blur effect.
  * @field strokeColor - The primary color of the lightning bolt itself.
  * @field trailLength - The number of frames to keep trails.
+ * @field startPosition - Defines where new lightning bolts originate. Can be a predefined string ('edges', 'top', etc.) or a custom function.
+ * @field startPositionBias - When using an edge-based `startPosition`, controls the distribution of bolts along that edge.
+ * @field startVelocity - Defines initial direction vector for new lightning bolts. Can be a predefined string, a fixed angle (in radians), or a custom function. The vector will be normalized internally.
  */
 export interface LightningOptions {
   // Timing
