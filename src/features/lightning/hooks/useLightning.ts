@@ -27,6 +27,11 @@ const DEFAULT_LIGHTNING_OPTIONS: LightningOptions = {
   blurColor: "rgba(120, 180, 255, 0.5)",
   strokeColor: "rgba(220, 235, 255, 0.8)",
   trailLength: 30,
+
+  // Starting position and velocity
+  startPosition: "edges",
+  startPositionBias: "uniform",
+  startVelocity: "inward",
 };
 
 interface TrailSegment {
@@ -84,50 +89,157 @@ export const useLightning = (
     let lightTimeTotal = random(config.minDelay, config.maxDelay);
 
     /**
-     * Creates new lightning bolts originating from random edges of the canvas.
-     * Each creation event can spawn multiple bolts based on config settings.
-     *
-     * The function:
-     * 1. Randomly selects an edge (top, right, bottom, left)
-     * 2. Sets initial position on that edge
-     * 3. Sets initial velocity vectors pointing inward
-     * 4. Creates the specified number of bolts with randomized properties
+     * Generates starting position based on configuration
      */
-    const createLightning = () => {
-      const edge = Math.floor(random(0, 4));
-      let x, y, vx, vy;
+    const getStartPosition = (): {
+      x: number;
+      y: number;
+      edge: "top" | "right" | "bottom" | "left";
+    } => {
+      const { startPosition, startPositionBias } = config;
 
+      // Handle custom position function
+      if (typeof startPosition === "function") {
+        const pos = startPosition(w, h);
+        // Determine which edge we're closest to
+        const distances = {
+          top: pos.y,
+          right: w - pos.x,
+          bottom: h - pos.y,
+          left: pos.x,
+        };
+        const edge = Object.entries(distances).reduce((a, b) =>
+          distances[a[0] as keyof typeof distances] <
+          distances[b[0] as keyof typeof distances]
+            ? a
+            : b,
+        )[0] as "top" | "right" | "bottom" | "left";
+
+        return { ...pos, edge };
+      }
+
+      // Determine which edge to use
+      let edge: "top" | "right" | "bottom" | "left";
+      if (startPosition === "edges") {
+        const edgeIndex = Math.floor(random(0, 4));
+        edge = ["top", "right", "bottom", "left"][edgeIndex] as typeof edge;
+      } else {
+        edge = startPosition!;
+      }
+
+      // Apply position bias
+      let positionAlongEdge = random(0, 1);
+      if (startPositionBias === "center") {
+        // Bell curve distribution toward center
+        positionAlongEdge = (random(0, 1) + random(0, 1)) / 2;
+      } else if (startPositionBias === "corners") {
+        // Bias toward corners
+        positionAlongEdge =
+          random(0, 1) < 0.5 ? random(0, 0.2) : random(0.8, 1);
+      } else if (typeof startPositionBias === "function") {
+        positionAlongEdge = startPositionBias(positionAlongEdge);
+      }
+
+      // Calculate actual position
+      let x: number, y: number;
       switch (edge) {
-        case 0: // Top edge
-          x = random(0, w);
+        case "top":
+          x = positionAlongEdge * w;
           y = 0;
-          vx = random(-1, 1);
-          vy = random(0.5, 1);
           break;
-        case 1: // Right edge
+        case "right":
           x = w;
-          y = random(0, h);
-          vx = random(-1, -0.5);
-          vy = random(-1, 1);
+          y = positionAlongEdge * h;
           break;
-        case 2: // Bottom edge
-          x = random(0, w);
+        case "bottom":
+          x = positionAlongEdge * w;
           y = h;
-          vx = random(-1, 1);
-          vy = random(-1, -0.5);
           break;
-        default: // Left edge (case 3)
+        case "left":
           x = 0;
-          y = random(0, h);
-          vx = random(0.5, 1);
-          vy = random(-1, 1);
+          y = positionAlongEdge * h;
           break;
       }
 
+      return { x, y, edge };
+    };
+
+    /**
+     * Generates velocity vector based on configuration
+     */
+    const getStartVelocity = (
+      edge: "top" | "right" | "bottom" | "left",
+      x: number,
+      y: number,
+    ): { vx: number; vy: number } => {
+      const { startVelocity } = config;
+
+      // Handle custom velocity function
+      if (typeof startVelocity === "function") {
+        return startVelocity(edge, x, y, w, h);
+      }
+
+      // Handle angle
+      if (typeof startVelocity === "number") {
+        return {
+          vx: Math.cos(startVelocity),
+          vy: Math.sin(startVelocity),
+        };
+      }
+
+      // Handle named directions
+      let vx: number, vy: number;
+
+      if (startVelocity === "random") {
+        const angle = random(0, Math.PI * 2);
+        vx = Math.cos(angle);
+        vy = Math.sin(angle);
+      } else if (startVelocity === "outward") {
+        // Point away from canvas center
+        const centerX = w / 2;
+        const centerY = h / 2;
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const mag = Math.sqrt(dx * dx + dy * dy);
+        vx = mag > 0 ? dx / mag : 0;
+        vy = mag > 0 ? dy / mag : 0;
+      } else {
+        // 'inward' (default)
+        switch (edge) {
+          case "top":
+            vx = random(-1, 1);
+            vy = random(0.5, 1);
+            break;
+          case "right":
+            vx = random(-1, -0.5);
+            vy = random(-1, 1);
+            break;
+          case "bottom":
+            vx = random(-1, 1);
+            vy = random(-1, -0.5);
+            break;
+          case "left":
+            vx = random(0.5, 1);
+            vy = random(-1, 1);
+            break;
+        }
+      }
+
+      return { vx, vy };
+    };
+
+    /**
+     * Creates new lightning bolts with configurable start positions and velocities
+     */
+    const createLightning = () => {
       const createCount = Math.floor(
         random(config.minCreateCount, config.maxCreateCount),
       );
+
       for (let i = 0; i < createCount; i++) {
+        const { x, y, edge } = getStartPosition();
+        const { vx, vy } = getStartVelocity(edge, x, y);
+
         lightning.push({
           x: x,
           y: y,

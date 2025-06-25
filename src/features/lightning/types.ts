@@ -1,4 +1,52 @@
-// src/features/projects/types.ts
+// src/features/lightning/types.ts
+
+/**
+ * Defines where lightning bolts can start
+ * - 'edges': Random edge (default behavior)
+ * - 'top' | 'right' | 'bottom' | 'left': Specific edge
+ * - Custom function returning {x, y} coordinates
+ */
+export type StartPosition =
+  | "edges"
+  | "top"
+  | "right"
+  | "bottom"
+  | "left"
+  | ((canvasWidth: number, canvasHeight: number) => { x: number; y: number });
+
+/**
+ * Controls position distribution along edges
+ * - 'uniform': Even distribution (default)
+ * - 'center': Bias toward center of edge
+ * - 'corners': Bias toward corners
+ * - Custom function returning 0-1 value for position along edge
+ */
+export type PositionBias =
+  | "uniform"
+  | "center"
+  | "corners"
+  | ((random: number) => number);
+
+/**
+ * Defines initial velocity vectors
+ * - 'inward': Points toward canvas interior (default)
+ * - 'outward': Points away from canvas
+ * - 'random': Random direction
+ * - number: Fixed angle in radians
+ * - Custom function returning {vx, vy} normalized vector
+ */
+export type StartVelocity =
+  | "inward"
+  | "outward"
+  | "random"
+  | number
+  | ((
+      edge: "top" | "right" | "bottom" | "left",
+      x: number,
+      y: number,
+      canvasWidth: number,
+      canvasHeight: number,
+    ) => { vx: number; vy: number });
 
 /**
  * @interface LightningBolt
@@ -72,4 +120,9 @@ export interface LightningOptions {
   blurColor: string;
   strokeColor: string;
   trailLength: number;
+
+  // Starting position and velocity
+  startPosition?: StartPosition;
+  startPositionBias?: PositionBias;
+  startVelocity?: StartVelocity;
 }
