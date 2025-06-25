@@ -1,4 +1,4 @@
-// src/features/lightning/hooks/useLightning.ts
+// src/features/projects/hooks/useLightning.ts
 import { useRef, useEffect, RefObject } from "react";
 import { LightningBolt, LightningOptions } from "../types";
 import { random } from "../utils/random";
@@ -26,11 +26,18 @@ const DEFAULT_LIGHTNING_OPTIONS: LightningOptions = {
   blur: 20,
   blurColor: "rgba(120, 180, 255, 0.5)",
   strokeColor: "rgba(220, 235, 255, 0.8)",
-  fadeoutColor: "rgba(0, 0, 0, 0.05)",
+  trailLength: 30,
 };
+
+interface TrailSegment {
+  path: { x: number; y: number }[];
+  age: number;
+  lineWidth: number;
+}
 
 /**
  * @hook useLightning
+ *
  * Renders a continuous, generative lightning effect onto a canvas element.
  * It handles the animation loop, canvas resizing, and all drawing logic internally.
  * The hook reads its dimensions from the canvas element, so the canvas MUST be
@@ -72,11 +79,22 @@ export const useLightning = (
     let h: number;
 
     const lightning: LightningBolt[] = [];
+    const trails: TrailSegment[] = [];
     let lightTimeCurrent = 0;
     let lightTimeTotal = random(config.minDelay, config.maxDelay);
 
+    /**
+     * Creates new lightning bolts originating from random edges of the canvas.
+     * Each creation event can spawn multiple bolts based on config settings.
+     *
+     * The function:
+     * 1. Randomly selects an edge (top, right, bottom, left)
+     * 2. Sets initial position on that edge
+     * 3. Sets initial velocity vectors pointing inward
+     * 4. Creates the specified number of bolts with randomized properties
+     */
     const createLightning = () => {
-      const edge = Math.floor(random(0, 4)); // 0: top, 1: right, 2: bottom, 3: left
+      const edge = Math.floor(random(0, 4));
       let x, y, vx, vy;
 
       switch (edge) {
@@ -119,40 +137,38 @@ export const useLightning = (
           pathLimit: random(config.minPathLength, config.maxPathLength),
           speed: random(config.minSpeed, config.maxSpeed),
           turniness: random(config.minTurniness, config.maxTurniness),
+          lineWidth: random(config.minLineWidth, config.maxLineWidth),
         });
       }
     };
 
-    /* - Direction Update: The bolt's direction vector (`vx`, `vy`) is slightly
-     *   altered by `turniness` to create a jagged path.
-     * - Vector Normalization: The direction vector's length is reset to 1. This is
-     *   crucial; it prevents the bolt from accelerating uncontrollably and ensures
-     *   `speed` is the primary factor for segment length.
-     * - Next Point Calculation: The next point is found by adding the direction
-     *   vector (scaled by `speed`) plus some random "jitter."
-     * - Termination: Bolts are removed if they go off-screen or their path limit is
-     *   reached. This is essential for performance.
+    /**
+     * Updates the position and path of all active lightning bolts.
+     *
+     * For each bolt:
+     * 1. Applies turniness to create natural-looking direction changes
+     * 2. Normalizes the velocity vector to maintain consistent speed
+     * 3. Calculates the next segment position with jitter for organic movement
+     * 4. Removes bolts that go off-screen or exceed their path limit
+     * 5. Transfers completed bolts to the trails array for fade-out effect
      */
-    const drawLightning = () => {
-      ctx.shadowBlur = config.blur;
-      ctx.shadowColor = config.blurColor;
-
+    const updateLightning = () => {
       for (let i = lightning.length - 1; i >= 0; i--) {
         const light = lightning[i];
         const lastSegment = light.path[light.path.length - 1];
 
-        // 1. Update direction vector with turniness
+        // Update direction vector with turniness
         light.vx += random(-light.turniness, light.turniness);
         light.vy += random(-light.turniness, light.turniness);
 
-        // 2. Normalize the vector to maintain a consistent direction push
+        // Normalize the vector
         const magnitude = Math.sqrt(light.vx * light.vx + light.vy * light.vy);
         if (magnitude > 0) {
           light.vx /= magnitude;
           light.vy /= magnitude;
         }
 
-        // 3. Calculate next point with main direction and jitter
+        // Calculate next point
         const segmentLength = random(light.speed * 0.5, light.speed * 1.5);
         const jitterAmount = light.speed * 1.5;
 
@@ -167,6 +183,12 @@ export const useLightning = (
 
         // Terminate if bolt goes off-screen
         if (nextX < 0 || nextX > w || nextY < 0 || nextY > h) {
+          // Add to trails before removing
+          trails.push({
+            path: [...light.path],
+            age: 0,
+            lineWidth: light.lineWidth,
+          });
           lightning.splice(i, 1);
           continue;
         }
@@ -174,62 +196,103 @@ export const useLightning = (
         light.path.push({ x: nextX, y: nextY });
 
         if (light.path.length > light.pathLimit) {
+          // Add to trails before removing
+          trails.push({
+            path: [...light.path],
+            age: 0,
+            lineWidth: light.lineWidth,
+          });
           lightning.splice(i, 1);
-          continue;
         }
+      }
+    };
 
-        ctx.strokeStyle = config.strokeColor;
-        ctx.lineWidth = random(config.minLineWidth, config.maxLineWidth);
+    /**
+     * Renders a single frame of the lightning animation.
+     *
+     * 1. Clears the entire canvas to ensure no color accumulation
+     * 2. Ages existing trails and removes those that exceed trailLength
+     * 3. Draws all trails with decreasing opacity based on age
+     * 4. Draws all active lightning bolts at full opacity
+     *
+     */
+    const drawFrame = () => {
+      // Clear the entire canvas
+      ctx.clearRect(0, 0, w, h);
+
+      // Update trail ages and remove old ones
+      for (let i = trails.length - 1; i >= 0; i--) {
+        trails[i].age++;
+        if (trails[i].age > config.trailLength) {
+          trails.splice(i, 1);
+        }
+      }
+
+      // Draw trails with fading opacity
+      ctx.shadowBlur = config.blur;
+      ctx.shadowColor = config.blurColor;
+
+      for (const trail of trails) {
+        const opacity = 1 - trail.age / config.trailLength;
+        const [r, g, b] = [220, 235, 255]; // Extract RGB from strokeColor
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${opacity * 0.8})`;
+        ctx.lineWidth = trail.lineWidth * opacity;
 
         ctx.beginPath();
-        ctx.moveTo(light.x, light.y);
+        ctx.moveTo(trail.path[0].x, trail.path[0].y);
+        for (const segment of trail.path) {
+          ctx.lineTo(segment.x, segment.y);
+        }
+        ctx.lineJoin = "round";
+        ctx.stroke();
+      }
+
+      // Draw active lightning bolts
+      for (const light of lightning) {
+        ctx.strokeStyle = config.strokeColor;
+        ctx.lineWidth = light.lineWidth;
+
+        ctx.beginPath();
+        ctx.moveTo(light.path[0].x, light.path[0].y);
         for (const segment of light.path) {
           ctx.lineTo(segment.x, segment.y);
         }
-
         ctx.lineJoin = "round";
         ctx.stroke();
       }
     };
 
-    /*
-     * On every frame, this function performs two main tasks:
-     * a) Fading the Canvas: Using `globalCompositeOperation` to create
-     *    trails. It draws a semi-transparent rectangle over the whole canvas, which
-     *    makes the previous frame fade slightly instead of disappearing completely.
-     * b) Timing and Drawing: It checks the timer to see if a new storm should be
-     *    created and then calls `drawLightning` to update and render every bolt.
+    /**
+     * Main animation loop function called on each frame.
+     *
+     * 1. Tracks frames and spawns new bolts at intervals
+     * 2. Updates all active lightning bolt positions
+     * 3. Renders the complete frame
+     * 4. Schedules the next animation frame
      */
-    const animateLightning = () => {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = config.fadeoutColor;
-      ctx.fillRect(0, 0, w, h);
-      ctx.globalCompositeOperation = "source-over";
-      ctx.shadowBlur = 0;
-
+    const animate = () => {
       lightTimeCurrent++;
       if (lightTimeCurrent >= lightTimeTotal) {
         createLightning();
         lightTimeCurrent = 0;
         lightTimeTotal = random(config.minDelay, config.maxDelay);
       }
-      drawLightning();
-    };
 
-    const animate = () => {
-      animateLightning();
+      updateLightning();
+      drawFrame();
+
       animationFrameId.current = requestAnimationFrame(animate);
     };
 
     const handleResize = () => {
       w = canvas.width = canvas.offsetWidth;
       h = canvas.height = canvas.offsetHeight;
-      // Clear existing lightning on resize to prevent weird artifacts
       lightning.length = 0;
+      trails.length = 0;
     };
 
     window.addEventListener("resize", handleResize);
-    handleResize(); // Set initial size
+    handleResize();
     animate();
 
     return () => {

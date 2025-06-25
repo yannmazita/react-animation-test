@@ -1,4 +1,4 @@
-// src/features/lightning/types.ts
+// src/features/projects/types.ts
 
 /**
  * @interface LightningBolt
@@ -23,6 +23,7 @@ export interface LightningBolt {
   pathLimit: number;
   speed: number;
   turniness: number;
+  lineWidth: number;
 }
 
 /**
@@ -45,7 +46,7 @@ export interface LightningBolt {
  * @field blur - The size of the glow/blur effect around the lightning.
  * @field blurColor - The color of the glow/blur effect.
  * @field strokeColor - The primary color of the lightning bolt itself.
- * @field fadeoutColor - The color used to fade out old frames, creating a trailing effect.
+ * @field trailLength - The number of frames to keep trails.
  */
 export interface LightningOptions {
   // Timing
@@ -70,5 +71,5 @@ export interface LightningOptions {
   blur: number;
   blurColor: string;
   strokeColor: string;
-  fadeoutColor: string;
+  trailLength: number;
 }
