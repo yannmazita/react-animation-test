@@ -1,4 +1,4 @@
-// src/features/projects/hooks/useLightning.ts
+// src/features/lightning/hooks/useLightning.ts
 import { useRef, useEffect, RefObject } from "react";
 import { LightningBolt, LightningOptions } from "../types";
 import { random } from "../utils/random";
