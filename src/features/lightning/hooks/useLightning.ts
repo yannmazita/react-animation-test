@@ -281,6 +281,8 @@ export const useLightning = (
         light.vy += random(-light.turniness, light.turniness);
 
         // Normalize the vector
+        // Because adding turniness changes the vector length and thus the calculated
+        // speed without normalization
         const magnitude = Math.sqrt(light.vx * light.vx + light.vy * light.vy);
         if (magnitude > 0) {
           light.vx /= magnitude;
