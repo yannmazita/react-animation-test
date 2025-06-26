@@ -29,6 +29,15 @@ export const routes: RouteObject[] = [
           return { Component: Lightning };
         },
       },
+      {
+        path: "/lightning-optimized",
+        lazy: async () => {
+          const { LightningOptimized } = await import(
+            "@/features/lightning/components/LightningOptimzed"
+          );
+          return { Component: LightningOptimized };
+        },
+      },
     ],
   },
 ];
